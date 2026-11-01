@@ -13,6 +13,7 @@
   "use strict";
 
   var LANGUAGES = [
+    { name: "Plain English", code: "en", speech: "en-IN" },
     { name: "Hindi", code: "hi", speech: "hi-IN" },
     { name: "Bengali", code: "bn", speech: "bn-IN" },
     { name: "Marathi", code: "mr", speech: "mr-IN" },
@@ -38,7 +39,7 @@
   // differs from our own `code` (Manipuri is "mni-Mtei" there). All 19
   // languages in this list are covered by Google Translate.
   var GOOGLE_CODE = {
-    hi: "hi", bn: "bn", mr: "mr", ta: "ta", te: "te", gu: "gu", kn: "kn",
+    en: "en", hi: "hi", bn: "bn", mr: "mr", ta: "ta", te: "te", gu: "gu", kn: "kn",
     ml: "ml", pa: "pa", or: "or", as: "as", doi: "doi", gom: "gom",
     sa: "sa", mni: "mni-Mtei", lus: "lus", kha: "kha", ne: "ne", ur: "ur"
   };
@@ -101,6 +102,7 @@
   }
 
   async function translateText(text, languageName) {
+    if (languageName === "Plain English") return text;
     var lang = findLanguage(languageName);
     var gcode = lang && GOOGLE_CODE[lang.code];
     if (!gcode) throw unsupportedError(languageName);
@@ -115,6 +117,7 @@
   // back to its original English text rather than failing the whole list.
   async function translateBatch(items, languageName) {
     if (!items.length) return [];
+    if (languageName === "Plain English") return items.slice();
     var lang = findLanguage(languageName);
     var gcode = lang && GOOGLE_CODE[lang.code];
     if (!gcode) throw unsupportedError(languageName);
