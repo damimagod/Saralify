@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Saralify Voice</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="theme.css">
+<style>
+  :root{padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}
+  body{margin:0;color-scheme:light dark}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  textarea.ta{width:100%;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:12px;font-family:var(--font-body);font-size:15px;background:var(--surface-2);color:var(--ink);line-height:1.5}
+  textarea.ta:focus-visible{outline:2px solid var(--accent-deep);outline-offset:2px}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap}
+  .mic-btn{position:relative}
+  .mic-btn.listening{background:var(--danger);color:#fff}
+  .mic-btn.listening .dot{display:inline-block}
+  .mic-btn .dot{display:none;width:7px;height:7px;border-radius:50%;background:#fff;animation:pulse 1s ease infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .banner.info{background:color-mix(in srgb, var(--accent2) 14%, var(--surface-2));color:var(--accent2)}
+  #uiStatus{display:flex;align-items:center;gap:6px}
+  #uiStatus .spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent-deep);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="wordmark">Saralify</div>
+    <p class="tagline" id="tagline">Speak or type any text. Saralify translates it and reads it aloud.</p>
+  </header>
+
+  <div id="noLangBanner" class="banner error" hidden role="alert">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <span>No language has been chosen yet. Open the main Saralify page and pick a language there, then come back here. Dictating and reading the English text aloud still work without it.</span>
+  </div>
+
+  <div class="card lang-pill" id="langPill" hidden>
+    <span class="step-hint" id="readingInLabel">Reading in</span>
+    <span class="val" id="langDisplay"></span>
+  </div>
+  <p class="step-hint" id="uiStatus" hidden><span class="spin"></span> Translating this page…</p>
+
+  <section class="card">
+    <div class="step-head"><span class="step-title" id="textLabel">Text</span></div>
+    <textarea class="ta" id="inputText" rows="6" placeholder="Paste a sentence, a form field, or anything to have explained aloud…"></textarea>
+    <div class="btn-row">
+      <button class="btn btn-ghost mic-btn" id="micBtn" type="button">
+        <span class="dot"></span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0M12 19v3"/></svg>
+        <span id="micLabel">Speak instead of typing</span>
+      </button>
+    </div>
+    <div id="micBanner" class="banner info" hidden></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="translateSpeakBtn" type="button" disabled><span id="translateSpeakLabel">Translate &amp; read aloud</span></button>
+      <button class="btn btn-ghost" id="readEnglishBtn" type="button" disabled><span id="readEnglishLabel">Read English aloud</span></button>
+    </div>
+  </section>
+
+  <div class="progress-row" id="progressRow" hidden>
+    <div class="progress-label"><span id="progressLabel">Translating…</span><span></span></div>
+    <div class="progress-track"><div class="progress-fill indeterminate" id="progressFill"></div></div>
+  </div>
+
+  <div id="errorBanner" class="banner error" hidden role="alert">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <span id="errorText"></span>
+  </div>
+
+  <section class="result-card" id="resultCard" hidden>
+    <div class="result-head">
+      <span class="result-title" id="translationLabel">Translation</span>
+      <div class="result-actions">
+        <button class="btn btn-teal" id="replayBtn" type="button"><span id="replayLabel">Replay</span></button>
+        <button class="btn btn-ghost" id="stopBtn" type="button"><span id="stopLabel">Stop</span></button>
+        <button class="btn btn-ghost" id="copyBtn" type="button"><span id="copyLabel">Copy</span></button>
+      </div>
+    </div>
+    <div class="script-block" id="translatedBlock"></div>
+    <div class="banner info" id="voiceBanner" hidden></div>
+  </section>
+
+  <footer class="note">
+    <span id="footerNote">Translation runs through Google Translate's free public service; dictation and voice playback depend on this device and browser. Not every language has a voice or microphone everywhere; if nothing plays, the translated text above is still there to read.</span>
+  </footer>
+</div>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var lang = Saralify.getStoredLang();
+  function $(id){ return document.getElementById(id); }
+
+  var inputText = $('inputText'), translateSpeakBtn = $('translateSpeakBtn'), readEnglishBtn = $('readEnglishBtn'),
+      progressRow = $('progressRow'), errorBanner = $('errorBanner'), errorText = $('errorText'),
+      resultCard = $('resultCard'), translatedBlock = $('translatedBlock'), voiceBanner = $('voiceBanner'),
+      replayBtn = $('replayBtn'), stopBtn = $('stopBtn'), copyBtn = $('copyBtn'),
+      micBtn = $('micBtn'), micLabelEl = $('micLabel');
+  var uiCopyLabel = Saralify.UI_SPEAK.copyLabel;
+  var micRestingLabel = Saralify.UI_SPEAK.micLabel;
+  var uiStatus = $('uiStatus');
+
+  function applyUI(t){
+    $('tagline').textContent = t.tagline;
+    $('readingInLabel').textContent = t.readingInLabel;
+    $('textLabel').textContent = t.textLabel;
+    micRestingLabel = t.micLabel;
+    micLabelEl.textContent = micRestingLabel;
+    $('translateSpeakLabel').textContent = t.translateSpeakLabel;
+    $('readEnglishLabel').textContent = t.readEnglishLabel;
+    $('translationLabel').textContent = t.translationLabel;
+    $('replayLabel').textContent = t.replayLabel;
+    $('stopLabel').textContent = t.stopLabel;
+    uiCopyLabel = t.copyLabel;
+    $('copyLabel').textContent = uiCopyLabel;
+    $('footerNote').textContent = t.footerNote;
+  }
+
+  // Reads the main page's cached translation of this page's own interface
+  // text if it's already there; otherwise translates it live here (this
+  // page does have its own AI access once opened), so the interface isn't
+  // stuck in English just because the main page hasn't finished yet.
+  (async function localizeUI(){
+    if (!lang) return;
+    var key = Saralify.uiSpeakCacheKey(lang.code);
+    try {
+      var raw = localStorage.getItem(key);
+      if (raw) { applyUI(JSON.parse(raw)); return; }
+    } catch(e){}
+    uiStatus.hidden = false;
+    try {
+      var t = await Saralify.localizeStrings(Saralify.UI_SPEAK, lang.name, key);
+      applyUI(t);
+    } catch(e){
+      // Keep the English interface; translateSpeakBtn surfaces its own
+      // error if AI access is the actual problem.
+    } finally {
+      uiStatus.hidden = true;
+    }
+  })();
+
+  if (!lang) {
+    $('noLangBanner').hidden = false;
+  } else {
+    $('langPill').hidden = false;
+    $('langDisplay').textContent = lang.name;
+  }
+
+  function updateButtons(){
+    var hasText = inputText.value.trim().length > 0;
+    translateSpeakBtn.disabled = !(hasText && lang);
+    readEnglishBtn.disabled = !hasText;
+  }
+  inputText.addEventListener('input', updateButtons);
+  updateButtons();
+
+  function showError(msg){ errorText.textContent = msg; errorBanner.hidden = false; }
+  function clearError(){ errorBanner.hidden = true; }
+
+  async function speak(text, bcp47){
+    if (!('speechSynthesis' in window)){
+      showError("Voice playback isn't supported in this browser.");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    voiceBanner.hidden = true;
+    var ok = await Saralify.hasVoiceFor(bcp47);
+    if (!ok){
+      voiceBanner.textContent = "This browser or device doesn't have a voice installed for this language, so playback may be silent or use a different accent. The translated text is still there to read above.";
+      voiceBanner.hidden = false;
+    }
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = bcp47;
+    window.speechSynthesis.speak(u);
+  }
+
+  readEnglishBtn.addEventListener('click', function(){
+    clearError();
+    speak(inputText.value.trim(), 'en-IN');
+  });
+
+  translateSpeakBtn.addEventListener('click', async function(){
+    var text = inputText.value.trim();
+    if (!text || !lang) return;
+    clearError();
+    resultCard.hidden = true;
+    progressRow.hidden = false;
+    translateSpeakBtn.disabled = true;
+    try {
+      var translated = await Saralify.translateText(text, lang.name);
+      translatedBlock.textContent = translated;
+      resultCard.hidden = false;
+      speak(translated, lang.speech);
+    } catch(err){
+      showError(Saralify.sampleErrorMessage(err));
+    } finally {
+      progressRow.hidden = true;
+      translateSpeakBtn.disabled = false;
+    }
+  });
+
+  replayBtn.addEventListener('click', function(){
+    if (!translatedBlock.textContent) return;
+    speak(translatedBlock.textContent, lang ? lang.speech : 'en-IN');
+  });
+  stopBtn.addEventListener('click', function(){
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  });
+  copyBtn.addEventListener('click', function(){
+    var text = translatedBlock.textContent;
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch(e){}
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).catch(fallback);
+    } else { fallback(); }
+    $('copyLabel').textContent = 'Copied';
+    setTimeout(function(){ $('copyLabel').textContent = uiCopyLabel; }, 1500);
+  });
+
+  // ---------- speech to text (dictation) ----------
+  // Live microphone access is not a capability this artifact platform
+  // grants, so this calls the browser's own Web Speech API directly.
+  // It works in most Chromium-based browsers once this page is opened
+  // in its own tab; it fails gracefully everywhere else.
+  var SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var recognition = null;
+  var listening = false;
+  var micBanner = $('micBanner');
+
+  function showMicBanner(msg){ micBanner.textContent = msg; micBanner.hidden = false; }
+
+  if (!SpeechRecognitionImpl) {
+    micBtn.addEventListener('click', function(){
+      showMicBanner("Voice input isn't supported in this browser. Try Chrome, or type the text in instead.");
+    });
+  } else {
+    recognition = new SpeechRecognitionImpl();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onresult = function(e){
+      var transcript = '';
+      for (var i = 0; i < e.results.length; i++) transcript += e.results[i][0].transcript;
+      inputText.value = transcript;
+      updateButtons();
+    };
+    recognition.onerror = function(e){
+      listening = false;
+      setListeningUI(false);
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        showMicBanner("Microphone access isn't available here. Make sure this site is served over HTTPS, then allow microphone access when your browser asks.");
+      } else if (e.error === 'no-speech'){
+        showMicBanner("Didn't catch any speech. Tap the microphone and try again.");
+      } else {
+        showMicBanner("Voice input stopped unexpectedly. You can still type the text in.");
+      }
+    };
+    recognition.onend = function(){
+      listening = false;
+      setListeningUI(false);
+    };
+
+    micBtn.addEventListener('click', function(){
+      if (listening) { recognition.stop(); return; }
+      micBanner.hidden = true;
+      try {
+        recognition.start();
+        listening = true;
+        setListeningUI(true);
+      } catch(err){
+        showMicBanner("Couldn't start voice input. You can still type the text in.");
+      }
+    });
+  }
+
+  function setListeningUI(on){
+    micBtn.classList.toggle('listening', on);
+    micLabelEl.textContent = on ? 'Listening… tap to stop' : micRestingLabel;
+  }
+})();
+</script>
+</body>
+</html>

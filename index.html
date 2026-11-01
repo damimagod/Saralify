@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Saralify</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="theme.css">
+<style>
+  body{margin:0;color-scheme:light dark}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  #uiStatus{display:flex;align-items:center;gap:6px}
+  #uiStatus .spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent-deep);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="wordmark">Saralify</div>
+    <p class="tagline" id="tagline">Photograph any banking form or statement. Saralify reads it in your browser and translates it into the language you pick.</p>
+  </header>
+
+  <section class="card">
+    <div class="step-head">
+      <span class="step-num">1</span>
+      <span class="step-title" id="step1Title">Choose your language</span>
+    </div>
+    <p class="step-hint" id="step1Hint">The document will be translated into this language once it's read. The page itself switches to this language too.</p>
+    <div class="chip-grid" id="langGrid" role="group" aria-label="Choose a language"></div>
+    <p class="step-hint" id="uiStatus" hidden><span class="spin"></span> Translating the page…</p>
+  </section>
+
+  <section class="card">
+    <div class="step-head">
+      <span class="step-num">2</span>
+      <span class="step-title" id="step2Title">Photograph the document</span>
+    </div>
+    <p class="step-hint" id="step2Hint">Fill the frame, keep it flat and well lit. Works best with clear printed text.</p>
+
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Take or upload a photo of your document">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8a2 2 0 0 1 2-2h1.2a1 1 0 0 0 .9-.55l.6-1.2A1 1 0 0 1 9.6 3.6h4.8a1 1 0 0 1 .9.65l.6 1.2a1 1 0 0 0 .9.55H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"/><circle cx="12" cy="13" r="3.4"/></svg>
+      <div class="dz-title" id="dzTitle">Tap to take or upload a photo</div>
+      <div class="dz-sub" id="dzSub">JPG or PNG — read right in your browser, nothing is uploaded for this step</div>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+
+    <div class="preview" id="previewWrap" hidden>
+      <img id="previewImg" alt="Photo of the document to read">
+      <button class="retake" id="retakeBtn" type="button">Retake</button>
+    </div>
+  </section>
+
+  <button class="btn btn-primary" id="processBtn" disabled type="button">Read &amp; translate</button>
+
+  <div class="progress-row" id="progressRow" hidden>
+    <div class="progress-label"><span id="progressLabel">Working…</span><span id="progressPct"></span></div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div id="errorBanner" class="banner error" hidden role="alert">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <span id="errorText"></span>
+  </div>
+
+  <section id="resultsSection" hidden style="display:flex;flex-direction:column;gap:14px">
+    <div class="result-card">
+      <div class="result-head"><span class="result-title" id="resultWhatTitle">What it says</span></div>
+      <div class="mono-block" id="extractedBlock"></div>
+      <dl class="glossary" id="glossaryList" hidden></dl>
+    </div>
+
+    <div class="result-card">
+      <div class="result-head">
+        <span class="result-title" id="translatedTitle">In your language</span>
+        <div class="result-actions">
+          <button class="btn btn-teal" id="listenBtn" type="button" hidden>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+            <span id="listenLabel">Listen</span>
+          </button>
+          <button class="btn btn-ghost" id="copyBtn" type="button" hidden>Copy</button>
+        </div>
+      </div>
+      <div class="script-block" id="translatedBlock"></div>
+      <div class="banner error" id="translateError" hidden></div>
+      <div class="banner info" id="voiceBanner" hidden></div>
+    </div>
+  </section>
+
+  <footer class="note">
+    <strong id="footerLead">This is a working prototype.</strong>
+    <span id="footerRest">This build runs fully in your browser: text recognition via Tesseract.js, translation via Google Translate's free public service. Quality is lower than a hosted-AI version, especially for messy photos or handwriting, and for the languages added to Google Translate more recently (Dogri, Konkani, Manipuri, Mizo, Sanskrit, Khasi). Voice playback depends on the voices installed on your device.</span>
+    <p style="margin:10px 0 0 0;font-size:11.5px">
+      <a href="forms.html" style="color:var(--ink-soft);text-decoration:underline">Forms library</a>
+      &nbsp;&middot;&nbsp;
+      <a href="speak.html" style="color:var(--ink-soft);text-decoration:underline">Voice tool</a>
+    </p>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="app.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var UI_STRINGS = Saralify.UI_INDEX;
+
+  var state = { lang:null, imageDataUrl:null, rawText:null };
+  var uiCopyLabel = UI_STRINGS.copyLabel, uiCopiedLabel = UI_STRINGS.copiedLabel;
+
+  function $(id){ return document.getElementById(id); }
+  function escapeHtml(s){ return Saralify.escapeHtml(s); }
+
+  // ---------- UI localization ----------
+  var uiStatus = $('uiStatus');
+
+  function applyUIStrings(t){
+    $('tagline').textContent = t.tagline;
+    $('step1Title').textContent = t.step1Title;
+    $('step1Hint').textContent = t.step1Hint;
+    $('step2Title').textContent = t.step2Title;
+    $('step2Hint').textContent = t.step2Hint;
+    $('dzTitle').textContent = t.dzTitle;
+    $('dzSub').textContent = t.dzSub;
+    retakeBtn.textContent = t.retake;
+    processBtn.textContent = t.processBtn;
+    $('resultWhatTitle').textContent = t.resultWhatTitle;
+    $('listenLabel').textContent = t.listenLabel;
+    uiCopyLabel = t.copyLabel; uiCopiedLabel = t.copiedLabel;
+    copyBtn.textContent = uiCopyLabel;
+    $('footerLead').textContent = t.footerLead;
+    $('footerRest').textContent = t.footerRest;
+  }
+
+  async function runSiteLocalization(lang){
+    uiStatus.hidden = false;
+    try {
+      var translated = await Saralify.localizeStrings(UI_STRINGS, lang.name, Saralify.uiIndexCacheKey(lang.code));
+      applyUIStrings(translated);
+    } catch(e){
+      // Keep the English interface (e.g. Khasi, or a network hiccup); the
+      // read & translate flow below surfaces its own error if relevant.
+    } finally {
+      uiStatus.hidden = true;
+    }
+    Saralify.preTranslateSite(lang);
+  }
+
+  // ---------- language chips ----------
+  var langGrid = $('langGrid');
+  Saralify.LANGUAGES.forEach(function(lang){
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip';
+    btn.textContent = lang.name;
+    btn.setAttribute('aria-pressed','false');
+    btn.addEventListener('click', function(){
+      langGrid.querySelectorAll('.chip').forEach(function(c){ c.setAttribute('aria-pressed','false'); });
+      btn.setAttribute('aria-pressed','true');
+      state.lang = lang;
+      Saralify.setStoredLang(lang);
+      updateProcessBtn();
+      runSiteLocalization(lang);
+    });
+    langGrid.appendChild(btn);
+  });
+  (function restoreLang(){
+    var remembered = Saralify.getStoredLang();
+    if (!remembered) return;
+    var idx = Saralify.LANGUAGES.findIndex(function(l){ return l.code === remembered.code; });
+    if (idx > -1) langGrid.children[idx].click();
+  })();
+
+  // ---------- photo capture ----------
+  var dropzone = $('dropzone'), photoInput = $('photoInput');
+  var previewWrap = $('previewWrap'), previewImg = $('previewImg'), retakeBtn = $('retakeBtn');
+
+  dropzone.addEventListener('click', function(){ photoInput.click(); });
+  dropzone.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); photoInput.click(); } });
+  ['dragover','dragenter'].forEach(function(ev){
+    dropzone.addEventListener(ev, function(e){ e.preventDefault(); dropzone.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    dropzone.addEventListener(ev, function(e){ e.preventDefault(); dropzone.classList.remove('drag'); });
+  });
+  dropzone.addEventListener('drop', function(e){
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+  photoInput.addEventListener('change', function(){
+    if (photoInput.files && photoInput.files[0]) handleFile(photoInput.files[0]);
+  });
+  retakeBtn.addEventListener('click', function(){
+    state.imageDataUrl = null;
+    previewWrap.hidden = true;
+    dropzone.hidden = false;
+    photoInput.value = '';
+    updateProcessBtn();
+  });
+
+  function handleFile(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      downscale(reader.result, 1600, function(dataUrl){
+        state.imageDataUrl = dataUrl;
+        previewImg.src = dataUrl;
+        previewWrap.hidden = false;
+        dropzone.hidden = true;
+        updateProcessBtn();
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function downscale(dataUrl, maxWidth, cb){
+    var img = new Image();
+    img.onload = function(){
+      var scale = Math.min(1, maxWidth / img.width);
+      var w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      cb(canvas.toDataURL('image/jpeg', 0.88));
+    };
+    img.onerror = function(){ cb(dataUrl); };
+    img.src = dataUrl;
+  }
+
+  // ---------- process button ----------
+  var processBtn = $('processBtn');
+  function updateProcessBtn(){ processBtn.disabled = !(state.lang && state.imageDataUrl); }
+
+  var progressRow = $('progressRow'), progressLabel = $('progressLabel'),
+      progressPct = $('progressPct'), progressFill = $('progressFill');
+  function showBusy(on, label){
+    progressRow.hidden = !on;
+    if (on){
+      progressLabel.textContent = label || 'Working…';
+    } else {
+      progressFill.classList.remove('indeterminate');
+      progressFill.style.width = '0%';
+      progressPct.textContent = '';
+    }
+  }
+  function setIndeterminate(){
+    progressFill.classList.add('indeterminate');
+    progressPct.textContent = '';
+  }
+  function setDeterminatePct(pct){
+    progressFill.classList.remove('indeterminate');
+    progressFill.style.width = Math.round(pct * 100) + '%';
+    progressPct.textContent = Math.round(pct * 100) + '%';
+  }
+
+  var errorBanner = $('errorBanner'), errorText = $('errorText');
+  function showError(msg){ errorText.textContent = msg; errorBanner.hidden = false; }
+  function clearError(){ errorBanner.hidden = true; }
+
+  var resultsSection = $('resultsSection'), extractedBlock = $('extractedBlock'),
+      glossaryList = $('glossaryList'), translatedBlock = $('translatedBlock'),
+      translatedTitle = $('translatedTitle'), translateError = $('translateError'),
+      listenBtn = $('listenBtn'), copyBtn = $('copyBtn'), voiceBanner = $('voiceBanner');
+
+  // Highlights terms from the small static glossary (app.js) found in the
+  // OCR'd text — there's no AI here to generate definitions per-document,
+  // so coverage is limited to this fixed list of common banking terms.
+  function renderExtracted(rawText){
+    var found = {};
+    Saralify.STATIC_GLOSSARY.forEach(function(g){
+      var re = new RegExp('\\b' + Saralify.escapeRe(g.term) + '\\b', 'i');
+      if (re.test(rawText)) found[g.term] = g.definition;
+    });
+    var terms = Object.keys(found).sort(function(a,b){ return b.length - a.length; });
+    var html = escapeHtml(rawText);
+    if (terms.length){
+      var re2 = new RegExp('\\b(' + terms.map(Saralify.escapeRe).join('|') + ')\\b', 'gi');
+      html = html.replace(re2, function(m){ return '<mark class="term">' + m + '</mark>'; });
+    }
+    extractedBlock.innerHTML = html;
+    glossaryList.innerHTML = '';
+    if (terms.length){
+      terms.forEach(function(t){
+        var dt = document.createElement('dt'); dt.textContent = t;
+        var dd = document.createElement('dd'); dd.textContent = found[t];
+        glossaryList.appendChild(dt); glossaryList.appendChild(dd);
+      });
+      glossaryList.hidden = false;
+    } else {
+      glossaryList.hidden = true;
+    }
+  }
+
+  listenBtn.addEventListener('click', async function(){
+    if (!('speechSynthesis' in window)){
+      showError("Voice playback isn't supported in this browser.");
+      return;
+    }
+    if (window.speechSynthesis.speaking){
+      window.speechSynthesis.cancel();
+      return;
+    }
+    voiceBanner.hidden = true;
+    var bcp = state.lang ? state.lang.speech : 'en-IN';
+    var ok = await Saralify.hasVoiceFor(bcp);
+    if (!ok){
+      voiceBanner.textContent = "This browser or device doesn't have a voice installed for " +
+        (state.lang ? state.lang.name : 'this language') +
+        ", so playback may be silent or use a different accent. The text above is still there to read.";
+      voiceBanner.hidden = false;
+    }
+    var u = new SpeechSynthesisUtterance(translatedBlock.textContent);
+    u.lang = bcp;
+    window.speechSynthesis.speak(u);
+  });
+
+  copyBtn.addEventListener('click', function(){
+    var text = translatedBlock.textContent;
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch(e){}
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).catch(fallback);
+    } else { fallback(); }
+    copyBtn.textContent = uiCopiedLabel;
+    setTimeout(function(){ copyBtn.textContent = uiCopyLabel; }, 1500);
+  });
+
+  processBtn.addEventListener('click', async function(){
+    if (!state.lang || !state.imageDataUrl) return;
+    clearError();
+    resultsSection.hidden = true;
+    translateError.hidden = true; voiceBanner.hidden = true;
+    listenBtn.hidden = true; copyBtn.hidden = true;
+    processBtn.disabled = true;
+
+    try {
+      showBusy(true, 'Reading photo (OCR)…');
+      var ocrResult = await Tesseract.recognize(state.imageDataUrl, 'eng', {
+        logger: function(m){
+          if (m.status === 'recognizing text' && typeof m.progress === 'number'){
+            setDeterminatePct(m.progress);
+          }
+        }
+      });
+      var rawText = ((ocrResult && ocrResult.data && ocrResult.data.text) || '').trim();
+      if (!rawText){
+        showError('No readable text was found in that photo. Try a clearer, well-lit shot with the document filling the frame.');
+        return;
+      }
+      state.rawText = rawText;
+      renderExtracted(rawText);
+      resultsSection.hidden = false;
+      translatedTitle.textContent = 'In ' + state.lang.name;
+
+      showBusy(true, 'Translating…');
+      setIndeterminate();
+      try {
+        var translatedText = await Saralify.translateText(rawText, state.lang.name);
+        translatedBlock.textContent = translatedText;
+        listenBtn.hidden = false; copyBtn.hidden = false;
+      } catch(err){
+        translateError.hidden = false;
+        translateError.textContent = Saralify.sampleErrorMessage(err);
+      }
+    } catch(err){
+      showError("Couldn't read that photo. Try a clearer, well-lit shot, or a different image.");
+    } finally {
+      showBusy(false);
+      processBtn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

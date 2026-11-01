@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Saralify Forms</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="theme.css">
+<style>
+  :root{padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}
+  body{margin:0;color-scheme:light dark}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .form-card{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
+  .form-top{display:flex;align-items:flex-start;gap:12px;cursor:pointer;background:none;border:none;padding:0;text-align:left;font:inherit;color:inherit;width:100%}
+  .form-thumb{position:relative;flex:none;width:58px;height:74px;border-radius:9px;overflow:hidden;background:var(--surface-2);border:1px solid var(--line)}
+  .form-thumb svg{width:100%;height:100%;display:block}
+  .form-thumb .ft-page{fill:var(--surface-2);stroke:var(--line);stroke-width:1}
+  .form-thumb .ft-title{fill:color-mix(in srgb, var(--accent) 55%, var(--surface-2))}
+  .form-thumb .ft-stamp{fill:var(--line)}
+  .form-thumb .ft-line{fill:var(--line)}
+  .form-thumb .ft-sign{stroke:var(--accent-deep);stroke-width:2;fill:none;stroke-linecap:round}
+  .form-cat-badge{position:absolute;bottom:-3px;right:-3px;width:21px;height:21px;border-radius:7px;background:var(--accent-deep);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--surface-2)}
+  .form-cat-badge svg{width:12px;height:12px}
+  .form-text{flex:1;min-width:0}
+  .form-name{font-family:var(--font-script);font-weight:600;font-size:16px;line-height:1.4}
+  .form-name-en{font-family:var(--font-body);font-size:11.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-soft);margin-top:2px}
+  .form-desc{font-family:var(--font-script);font-size:14px;line-height:1.6;color:var(--ink)}
+  .form-category{font-family:var(--font-body);font-size:11px;font-weight:600;color:var(--accent-deep);text-transform:uppercase;letter-spacing:.04em}
+  .chevron{flex:none;width:18px;height:18px;color:var(--ink-soft);transition:transform .15s;margin-top:11px}
+  .form-card.open .chevron{transform:rotate(180deg)}
+  .fields-wrap{display:none;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:10px;margin-top:2px}
+  .form-card.open .fields-wrap{display:flex}
+  .fields-heading{font-family:var(--font-body);font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em}
+  .field-row{display:flex;align-items:baseline;gap:8px;font-family:var(--font-script);font-size:14px;line-height:1.5}
+  .field-num{flex:none;font-family:var(--font-mono);font-size:11px;color:var(--accent-deep);min-width:16px}
+  .banner.info{background:color-mix(in srgb, var(--accent2) 14%, var(--surface-2));color:var(--accent2)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="wordmark">Saralify</div>
+    <p class="tagline" id="tagline">Common banking forms, with the fields explained in plain words.</p>
+  </header>
+
+  <div id="noLangBanner" class="banner error" hidden role="alert">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <span>No language has been chosen yet. Showing forms in English. Pick a language on the main Saralify page, then reopen this page and it will use that choice automatically.</span>
+  </div>
+
+  <div class="card lang-pill" id="langPill" hidden>
+    <span class="step-hint" id="readingInLabel">Showing forms in</span>
+    <span class="val" id="langDisplay"></span>
+  </div>
+
+  <div class="progress-row" id="progressRow" hidden>
+    <div class="progress-label"><span id="progressLabel">Translating the forms library…</span><span></span></div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div id="translateErrorBanner" class="banner error" hidden role="alert">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <span id="translateErrorText"></span>
+  </div>
+
+  <section class="card">
+    <div class="step-head"><span class="step-title" id="categoryTitle">Category</span></div>
+    <div class="chip-grid" id="categoryGrid" role="group" aria-label="Choose a form category"></div>
+  </section>
+
+  <section id="formsList" style="display:flex;flex-direction:column;gap:12px"></section>
+
+  <footer class="note">
+    <strong id="footerStrong">Fourteen common Indian banking forms</strong>
+    <span id="footerRest">, grouped into five categories. Tap a form to see its fields translated and explained. The original English name is kept on every form so it is still easy to recognize at the counter.</span>
+  </footer>
+</div>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var FORMS = Saralify.FORMS;
+  var ALL_LABEL = Saralify.FORMS_ALL_LABEL;
+  var categoryOrder = Saralify.uniqueCategories();
+
+  var lang = Saralify.getStoredLang();
+  var selectedCategory = null; // null = all
+  var cached = null;    // { categories, names, descs, fields }
+  var uiCached = null;
+
+  function $(id){ return document.getElementById(id); }
+  function readCache(key){
+    try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch(e){ return null; }
+  }
+  function writeCache(key, val){
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){}
+  }
+
+  if (!lang) {
+    $('noLangBanner').hidden = false;
+  } else {
+    $('langPill').hidden = false;
+    $('langDisplay').textContent = lang.name;
+  }
+
+  function applyUI(t){
+    $('tagline').textContent = t.tagline;
+    $('readingInLabel').textContent = t.readingInLabel;
+    $('categoryTitle').textContent = t.categoryTitle;
+    $('footerStrong').textContent = t.footerStrong;
+    $('footerRest').textContent = t.footerRest;
+  }
+
+  function fieldsHeadingText(){
+    return (uiCached && uiCached.fieldsHeading) || Saralify.UI_FORMS.fieldsHeading;
+  }
+
+  function renderCategoryChips(){
+    var grid = $('categoryGrid');
+    grid.innerHTML = '';
+    var labels = [ALL_LABEL].concat(categoryOrder);
+    labels.forEach(function(orig, i){
+      var label = cached ? cached.categories[i] : orig;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      btn.textContent = label;
+      var isActive = (i === 0 && selectedCategory === null) || (orig === selectedCategory);
+      btn.setAttribute('aria-pressed', String(isActive));
+      btn.addEventListener('click', function(){
+        selectedCategory = (i === 0) ? null : orig;
+        renderCategoryChips();
+        renderForms();
+      });
+      grid.appendChild(btn);
+    });
+  }
+
+  function renderForms(){
+    var list = $('formsList');
+    list.innerHTML = '';
+    FORMS.forEach(function(f, i){
+      if (selectedCategory && f.category !== selectedCategory) return;
+      var name = cached ? cached.names[i] : f.name;
+      var desc = cached ? cached.descs[i] : f.desc;
+      var catLabel = cached ? cached.categories[categoryOrder.indexOf(f.category) + 1] : f.category;
+      var fields = cached ? cached.fields[i] : f.fields;
+
+      var card = document.createElement('div');
+      card.className = 'form-card';
+
+      var top = document.createElement('button');
+      top.type = 'button';
+      top.className = 'form-top';
+      top.setAttribute('aria-expanded', 'false');
+
+      var badge = document.createElement('div');
+      badge.className = 'form-thumb';
+      var thumbSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      thumbSvg.setAttribute('viewBox','0 0 80 100');
+      thumbSvg.innerHTML = Saralify.formThumbnailSvg(f);
+      badge.appendChild(thumbSvg);
+
+      var catBadge = document.createElement('div');
+      catBadge.className = 'form-cat-badge';
+      var catSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      catSvg.setAttribute('viewBox','0 0 24 24');
+      catSvg.setAttribute('fill','none');
+      catSvg.setAttribute('stroke','currentColor');
+      catSvg.setAttribute('stroke-width','1.8');
+      catSvg.innerHTML = Saralify.CATEGORY_ICONS[f.category] || '';
+      catBadge.appendChild(catSvg);
+      badge.appendChild(catBadge);
+
+      var textWrap = document.createElement('div');
+      textWrap.className = 'form-text';
+      var cat = document.createElement('div');
+      cat.className = 'form-category';
+      cat.textContent = catLabel;
+      var nm = document.createElement('div');
+      nm.className = 'form-name';
+      nm.textContent = name;
+      var nmEn = document.createElement('div');
+      nmEn.className = 'form-name-en';
+      nmEn.textContent = f.name;
+      textWrap.appendChild(cat); textWrap.appendChild(nm);
+      if (cached) textWrap.appendChild(nmEn);
+
+      var chev = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      chev.setAttribute('class','chevron');
+      chev.setAttribute('viewBox','0 0 24 24');
+      chev.setAttribute('fill','none');
+      chev.setAttribute('stroke','currentColor');
+      chev.setAttribute('stroke-width','2');
+      chev.innerHTML = '<path d="m6 9 6 6 6-6"/>';
+
+      top.appendChild(badge);
+      top.appendChild(textWrap);
+      top.appendChild(chev);
+
+      var ds = document.createElement('div');
+      ds.className = 'form-desc';
+      ds.textContent = desc;
+
+      var fieldsWrap = document.createElement('div');
+      fieldsWrap.className = 'fields-wrap';
+      var fh = document.createElement('div');
+      fh.className = 'fields-heading';
+      fh.textContent = fieldsHeadingText();
+      fieldsWrap.appendChild(fh);
+      (fields || []).forEach(function(field, fi){
+        var row = document.createElement('div');
+        row.className = 'field-row';
+        var num = document.createElement('span');
+        num.className = 'field-num';
+        num.textContent = (fi + 1) + '.';
+        var txt = document.createElement('span');
+        txt.textContent = field;
+        row.appendChild(num); row.appendChild(txt);
+        fieldsWrap.appendChild(row);
+      });
+
+      top.addEventListener('click', function(){
+        var open = card.classList.toggle('open');
+        top.setAttribute('aria-expanded', String(open));
+      });
+
+      card.appendChild(top);
+      card.appendChild(ds);
+      card.appendChild(fieldsWrap);
+      list.appendChild(card);
+    });
+  }
+
+  function showProgress(on, pct){
+    $('progressRow').hidden = !on;
+    if (on) $('progressFill').style.width = Math.round((pct||0)*100) + '%';
+  }
+
+  async function loadTranslations(){
+    cached = readCache(Saralify.formsCacheKey(lang.code));
+    uiCached = readCache(Saralify.uiFormsCacheKey(lang.code));
+    if (uiCached) applyUI(uiCached);
+    if (cached) { renderCategoryChips(); renderForms(); return; }
+
+    renderCategoryChips();
+    renderForms();
+    showProgress(true, 0.05);
+
+    var uiJob = uiCached ? Promise.resolve() : Saralify.localizeStrings(Saralify.UI_FORMS, lang.name, Saralify.uiFormsCacheKey(lang.code))
+      .then(function(t){ uiCached = t; applyUI(t); })
+      .catch(function(){ /* keep English labels */ });
+
+    var formsJob = Saralify.translateForms(lang.name, function(pct){ showProgress(true, pct); })
+      .then(function(data){
+        cached = data;
+        writeCache(Saralify.formsCacheKey(lang.code), data);
+      });
+
+    try {
+      await Promise.all([uiJob, formsJob]);
+    } catch(err){
+      $('translateErrorBanner').hidden = false;
+      $('translateErrorText').textContent = Saralify.sampleErrorMessage(err) + ' Showing what translated successfully; the rest is in English.';
+    } finally {
+      showProgress(false);
+      renderCategoryChips();
+      renderForms();
+    }
+  }
+
+  renderCategoryChips();
+  renderForms();
+  if (lang) loadTranslations();
+})();
+</script>
+</body>
+</html>
