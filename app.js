@@ -320,6 +320,8 @@
     listenLabel:"Listen",
     copyLabel:"Copy",
     copiedLabel:"Copied",
+    vocabHeading:"Banking vocabulary",
+    vocabHint:"Common words you'll see on Indian bank forms and in banking conversations, explained simply. Tap a word to see what it means.",
     footerLead:"This is a working prototype.",
     footerRest:"This build runs fully in your browser: text recognition via Tesseract.js, translation via Google Translate's free public service. Quality is lower than a hosted-AI version, especially for messy photos or handwriting, and for the languages added to Google Translate more recently (Dogri, Konkani, Manipuri, Mizo, Sanskrit, Khasi). Voice playback depends on the voices installed on your device."
   };
@@ -490,6 +492,54 @@
     return { titles: titlesOut, summaries: summariesOut, tips: tipsOut };
   }
 
+  // A small fixed glossary of common Indian-banking vocabulary, shown on the
+  // main page. Terms stay in English (that's how they appear on real forms
+  // and in branch conversations); only the definitions are translated.
+  var VOCAB_TERMS = [
+    { term: "KYC", definition: "Know Your Customer — the identity and address checks banks must do before opening an account or starting a service." },
+    { term: "PAN", definition: "Permanent Account Number — a 10-character ID from the Income Tax Department, used for most financial transactions." },
+    { term: "Aadhaar", definition: "A 12-digit identity number issued by the Indian government, commonly used as proof of identity and address." },
+    { term: "UPI", definition: "Unified Payments Interface — the system behind instant phone-to-phone or phone-to-shop payments in India, used through apps." },
+    { term: "NEFT", definition: "National Electronic Funds Transfer — a system for sending money between bank accounts, usually settled in batches." },
+    { term: "RTGS", definition: "Real Time Gross Settlement — a system for transferring money between accounts instantly, usually for larger amounts." },
+    { term: "IFSC", definition: "Indian Financial System Code — an 11-character code identifying a specific bank branch for transfers." },
+    { term: "NACH", definition: "National Automated Clearing House — the system banks use to automatically debit recurring payments like EMIs." },
+    { term: "EMI", definition: "Equated Monthly Installment — the fixed amount paid each month toward a loan." },
+    { term: "Nominee", definition: "The person named to receive the money in an account if the account holder passes away." },
+    { term: "Fixed Deposit", definition: "A lump sum of money locked in with the bank for a set period to earn a fixed interest rate." },
+    { term: "Recurring Deposit", definition: "A savings plan where a fixed amount is deposited every month and earns interest." },
+    { term: "Demand Draft", definition: "A guaranteed payment instrument issued by a bank, used instead of a personal cheque." },
+    { term: "Standing Instruction", definition: "An order given to a bank to make a regular payment automatically, such as rent or an EMI." },
+    { term: "Overdraft", definition: "Permission from the bank to withdraw more money than is in the account, up to an agreed limit." },
+    { term: "CIBIL score", definition: "A three-digit credit score used in India to judge how likely someone is to repay a loan." },
+    { term: "Cheque", definition: "A written, signed instruction to a bank to pay a specific amount from the account." },
+    { term: "Passbook", definition: "A small booklet that records every deposit and withdrawal in a savings account." },
+    { term: "Minimum Balance", definition: "The lowest amount an account must hold at all times; falling below it can mean a small penalty fee." },
+    { term: "Net Banking", definition: "Managing an account, making transfers, and paying bills through the bank's website or app instead of visiting a branch." }
+  ];
+
+  function vocabCacheKey(code) { return "saralify_vocab_" + code; }
+
+  // Translates only the definitions (the terms themselves stay in English,
+  // since that's how they appear on real forms). Small groups with their
+  // own try/catch, so one failing group just leaves those few definitions
+  // in English rather than failing the whole glossary.
+  async function translateVocab(languageName, onProgress) {
+    var defs = VOCAB_TERMS.map(function (v) { return v.definition; });
+    var defsOut = defs.slice();
+    var groupSize = 6;
+    var groupCount = Math.ceil(defs.length / groupSize);
+    for (var start = 0, gi = 0; start < defs.length; start += groupSize, gi++) {
+      var group = defs.slice(start, start + groupSize);
+      try {
+        var translated = await translateBatch(group, languageName);
+        translated.forEach(function (t, i) { defsOut[start + i] = t; });
+      } catch (e) { /* this group's definitions stay in English */ }
+      if (onProgress) onProgress((gi + 1) / groupCount);
+    }
+    return { definitions: defsOut };
+  }
+
   async function preTranslateSite(lang) {
     var jobs = [
       (async function () {
@@ -547,12 +597,15 @@
     UI_SAFETY: UI_SAFETY,
     SAFETY_TIPS: SAFETY_TIPS,
     translateSafetyTips: translateSafetyTips,
+    VOCAB_TERMS: VOCAB_TERMS,
+    translateVocab: translateVocab,
     formsCacheKey: formsCacheKey,
     uiIndexCacheKey: uiIndexCacheKey,
     uiFormsCacheKey: uiFormsCacheKey,
     uiSpeakCacheKey: uiSpeakCacheKey,
     safetyCacheKey: safetyCacheKey,
     uiSafetyCacheKey: uiSafetyCacheKey,
+    vocabCacheKey: vocabCacheKey,
     preTranslateSite: preTranslateSite
   };
 })(window);

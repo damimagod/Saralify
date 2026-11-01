@@ -12,8 +12,16 @@
   img{max-width:100%}
   [hidden]{display:none!important}
   #uiStatus{display:flex;align-items:center;gap:6px}
-  #uiStatus .spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent-deep);animation:spin .8s linear infinite}
+  #uiStatus .spin, #vocabStatus .spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent-deep);animation:spin .8s linear infinite}
+  #vocabStatus{display:flex;align-items:center;gap:6px}
   @keyframes spin{to{transform:rotate(360deg)}}
+  .vocab-card{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .vocab-top{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:none;border:none;padding:12px 14px;text-align:left;font:inherit;color:inherit;cursor:pointer}
+  .vocab-term{font-family:var(--font-body);font-weight:700;font-size:14px;letter-spacing:.01em}
+  .vocab-chevron{flex:none;width:16px;height:16px;color:var(--ink-soft);transition:transform .15s}
+  .vocab-card.open .vocab-chevron{transform:rotate(180deg)}
+  .vocab-def{display:none;padding:0 14px 14px 14px;font-family:var(--font-script);font-size:14px;line-height:1.6;color:var(--ink-soft)}
+  .vocab-card.open .vocab-def{display:block}
 </style>
 </head>
 <body>
@@ -89,6 +97,14 @@
     </div>
   </section>
 
+  <section class="card">
+    <div class="step-head"><span class="step-title" id="vocabHeading">Banking vocabulary</span></div>
+    <p class="step-hint" id="vocabHint">Common words you'll see on Indian bank forms and in banking conversations, explained simply. Tap a word to see what it means.</p>
+    <p class="step-hint" id="vocabStatus" hidden><span class="spin"></span> Translating…</p>
+  </section>
+
+  <section id="vocabList" style="display:flex;flex-direction:column;gap:8px"></section>
+
   <footer class="note">
     <span id="footerRest">Created by Paarth Gupta in 2026. PGCR Industries</span>
     <p style="margin:10px 0 0 0;font-size:11.5px">
@@ -132,8 +148,81 @@
     $('listenLabel').textContent = t.listenLabel;
     uiCopyLabel = t.copyLabel; uiCopiedLabel = t.copiedLabel;
     copyBtn.textContent = uiCopyLabel;
+    $('vocabHeading').textContent = t.vocabHeading;
+    $('vocabHint').textContent = t.vocabHint;
     $('footerRest').textContent = t.footerRest;
   }
+
+  // ---------- banking vocabulary ----------
+  var VOCAB_TERMS = Saralify.VOCAB_TERMS;
+  var vocabCached = null; // { definitions }
+  var vocabStatus = $('vocabStatus');
+
+  function vocabReadCache(key){
+    try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch(e){ return null; }
+  }
+  function vocabWriteCache(key, val){
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){}
+  }
+
+  function renderVocab(){
+    var list = $('vocabList');
+    list.innerHTML = '';
+    VOCAB_TERMS.forEach(function(v, i){
+      var def = vocabCached ? vocabCached.definitions[i] : v.definition;
+
+      var card = document.createElement('div');
+      card.className = 'vocab-card';
+
+      var top = document.createElement('button');
+      top.type = 'button';
+      top.className = 'vocab-top';
+
+      var term = document.createElement('span');
+      term.className = 'vocab-term';
+      term.textContent = v.term;
+
+      var chev = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      chev.setAttribute('class','vocab-chevron');
+      chev.setAttribute('viewBox','0 0 24 24');
+      chev.setAttribute('fill','none');
+      chev.setAttribute('stroke','currentColor');
+      chev.setAttribute('stroke-width','2');
+      chev.innerHTML = '<path d="m6 9 6 6 6-6"/>';
+
+      top.appendChild(term);
+      top.appendChild(chev);
+
+      var defEl = document.createElement('div');
+      defEl.className = 'vocab-def';
+      defEl.textContent = def;
+
+      top.addEventListener('click', function(){ card.classList.toggle('open'); });
+
+      card.appendChild(top);
+      card.appendChild(defEl);
+      list.appendChild(card);
+    });
+  }
+
+  async function loadVocab(lang){
+    vocabCached = vocabReadCache(Saralify.vocabCacheKey(lang.code));
+    renderVocab();
+    if (vocabCached) return;
+
+    vocabStatus.hidden = false;
+    try {
+      var data = await Saralify.translateVocab(lang.name);
+      vocabCached = data;
+      vocabWriteCache(Saralify.vocabCacheKey(lang.code), data);
+    } catch(e) { /* keep English definitions */ }
+    finally {
+      vocabStatus.hidden = true;
+      renderVocab();
+    }
+  }
+
+  renderVocab();
 
   async function runSiteLocalization(lang){
     uiStatus.hidden = false;
@@ -164,6 +253,7 @@
       Saralify.setStoredLang(lang);
       updateProcessBtn();
       runSiteLocalization(lang);
+      loadVocab(lang);
     });
     langGrid.appendChild(btn);
   });
