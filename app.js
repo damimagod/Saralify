@@ -390,6 +390,106 @@
     return order;
   }
 
+  // ---------- fraud/scam safety tips ----------
+  var SAFETY_TIPS = [
+    { title: "Fake \"update your KYC\" calls or texts",
+      summary: "A caller or message claims your account or KYC will be blocked unless you act immediately, then asks for your PIN, OTP, or a link to click.",
+      tips: [
+        "Banks never ask for your PIN, password, or OTP over a call, SMS, or WhatsApp.",
+        "Never click links in unexpected KYC-update messages — open your bank's app or visit a branch directly instead.",
+        "If unsure, hang up and call the number printed on your passbook or card, not a number given to you in the message."
+      ] },
+    { title: "Anyone asking for your OTP",
+      summary: "An OTP proves that only you can authorize a transaction. Anyone asking for it — even someone claiming to be bank staff — is trying to take money from your account.",
+      tips: [
+        "Never share an OTP with anyone, for any reason, including people claiming to be bank staff or police.",
+        "An OTP you didn't request means someone already has your card or account details — call your bank immediately.",
+        "Ignore and delete any message or call asking you to read out an OTP."
+      ] },
+    { title: "Callers claiming to be bank or RBI officials",
+      summary: "Scammers pose as bank staff, RBI officials, or police to sound official and pressure you into acting fast, often threatening to freeze your account.",
+      tips: [
+        "Real bank or RBI staff never ask you to install an app, share your screen, or move money to a \"safe account\".",
+        "A genuine bank will never pressure you to act within minutes — take your time.",
+        "Hang up and call your bank branch directly, using a number you already have, to check if the call was real."
+      ] },
+    { title: "QR codes and payment links",
+      summary: "Scanning a QR code or opening a payment link can only be used to send money, never to receive it — so anyone saying \"scan this to get your refund\" is lying.",
+      tips: [
+        "You never need to scan a QR code or enter your UPI PIN to receive money — only to send it.",
+        "Be suspicious of any refund, cashback, or prize that asks you to scan something first.",
+        "Don't open a QR code or link that arrived with an unexpected shipping, refund, or prize message."
+      ] },
+    { title: "Upfront fees for loans or card approvals",
+      summary: "A caller offers a \"pre-approved\" loan or credit card but asks for a processing fee, GST, or insurance payment before releasing the money.",
+      tips: [
+        "No genuine lender asks for money upfront before a loan is disbursed.",
+        "Check any loan offer directly with the bank or lender's official website or branch, not through the number that called you.",
+        "Be extra cautious of loan offers that arrive by WhatsApp or SMS from unknown numbers."
+      ] },
+    { title: "Help offered at the ATM",
+      summary: "A stranger offers to \"help\" when your card gets stuck or a transaction fails, then swaps or copies your card while distracting you.",
+      tips: [
+        "Politely decline help from strangers at the ATM — call your bank's helpline instead if your card gets stuck.",
+        "Always shield the keypad with your hand while entering your PIN.",
+        "Check the card slot for anything unusual attached before inserting your card."
+      ] },
+    { title: "Unexpected prize, lottery, or cashback messages",
+      summary: "A message says you've won a lottery, prize, or large cashback, then asks for your bank details or a small \"fee\" to release it.",
+      tips: [
+        "If you didn't enter a contest, you can't have won one — delete the message.",
+        "Never pay a fee or share bank details to receive money you've supposedly won.",
+        "Treat any message promising money for nothing as fraud."
+      ] },
+    { title: "Requests to install a remote-access app",
+      summary: "Someone claiming to be tech or bank support asks you to install an app like AnyDesk, TeamViewer, or QuickSupport to \"fix\" a problem — this gives them full control of your phone.",
+      tips: [
+        "Never install a remote-access app because someone on a call asked you to.",
+        "Real support staff do not need to see or control your banking apps.",
+        "If you've already installed one, uninstall it immediately and change your banking passwords."
+      ] }
+  ];
+
+  var UI_SAFETY = {
+    tagline: "Common banking scams in India, and how to protect yourself — explained in plain language.",
+    readingInLabel: "Showing tips in",
+    emergencyTitle: "Already shared an OTP or sent money to a scammer?",
+    emergencyBody: "Call 1930 right now — India's National Cyber Crime Helpline for financial fraud — or report online at cybercrime.gov.in. Acting fast gives your bank the best chance of stopping or reversing the transfer.",
+    tipsHeading: "What to do",
+    footerStrong: "General safety habits, not a complete list.",
+    footerRest: "When in doubt about any call, message, or link claiming to be from your bank, contact your branch directly using the number on your card or passbook."
+  };
+
+  function safetyCacheKey(code) { return "saralify_safety_" + code; }
+  function uiSafetyCacheKey(code) { return "saralify_ui_safety_" + code; }
+
+  async function translateSafetyTips(languageName, onProgress) {
+    var titles = SAFETY_TIPS.map(function (s) { return s.title; });
+    var summaries = SAFETY_TIPS.map(function (s) { return s.summary; });
+    var titlesOut = titles.slice(), summariesOut = summaries.slice();
+    try {
+      var head = await translateBatch(titles.concat(summaries), languageName);
+      titlesOut = head.slice(0, titles.length);
+      summariesOut = head.slice(titles.length);
+    } catch (e) { /* keep English for these; tips below are independent */ }
+    if (onProgress) onProgress(0.3);
+
+    var tipsOut = SAFETY_TIPS.map(function (s) { return s.tips.slice(); });
+    var groupSize = 2;
+    var groupCount = Math.ceil(SAFETY_TIPS.length / groupSize);
+    for (var start = 0, gi = 0; start < SAFETY_TIPS.length; start += groupSize, gi++) {
+      var group = SAFETY_TIPS.slice(start, start + groupSize);
+      var flat = [], spans = [];
+      group.forEach(function (s) { spans.push([flat.length, s.tips.length]); flat = flat.concat(s.tips); });
+      try {
+        var translatedFlat = await translateBatch(flat, languageName);
+        spans.forEach(function (span, si) { tipsOut[start + si] = translatedFlat.slice(span[0], span[0] + span[1]); });
+      } catch (e) { /* this group's tips stay in English */ }
+      if (onProgress) onProgress(0.3 + 0.7 * ((gi + 1) / groupCount));
+    }
+    return { titles: titlesOut, summaries: summariesOut, tips: tipsOut };
+  }
+
   async function preTranslateSite(lang) {
     var jobs = [
       (async function () {
@@ -404,6 +504,16 @@
         var key = formsCacheKey(lang.code);
         if (localStorage.getItem(key)) return;
         var data = await translateForms(lang.name);
+        try { localStorage.setItem(key, JSON.stringify(data)); } catch (e) {}
+      })(),
+      (async function () {
+        if (localStorage.getItem(uiSafetyCacheKey(lang.code))) return;
+        await localizeStrings(UI_SAFETY, lang.name, uiSafetyCacheKey(lang.code));
+      })(),
+      (async function () {
+        var key = safetyCacheKey(lang.code);
+        if (localStorage.getItem(key)) return;
+        var data = await translateSafetyTips(lang.name);
         try { localStorage.setItem(key, JSON.stringify(data)); } catch (e) {}
       })()
     ];
@@ -434,10 +544,15 @@
     UI_INDEX: UI_INDEX,
     UI_FORMS: UI_FORMS,
     UI_SPEAK: UI_SPEAK,
+    UI_SAFETY: UI_SAFETY,
+    SAFETY_TIPS: SAFETY_TIPS,
+    translateSafetyTips: translateSafetyTips,
     formsCacheKey: formsCacheKey,
     uiIndexCacheKey: uiIndexCacheKey,
     uiFormsCacheKey: uiFormsCacheKey,
     uiSpeakCacheKey: uiSpeakCacheKey,
+    safetyCacheKey: safetyCacheKey,
+    uiSafetyCacheKey: uiSafetyCacheKey,
     preTranslateSite: preTranslateSite
   };
 })(window);

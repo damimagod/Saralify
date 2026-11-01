@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Saralify Safety</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="theme.css">
+<style>
+  :root{padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}
+  body{margin:0;color-scheme:light dark}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  .safety-card{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+  .safety-top{display:flex;align-items:flex-start;gap:12px}
+  .safety-icon{flex:none;width:40px;height:40px;border-radius:10px;background:color-mix(in srgb, var(--danger) 16%, var(--surface-2));color:var(--danger);display:flex;align-items:center;justify-content:center}
+  .safety-icon svg{width:20px;height:20px}
+  .safety-title{font-family:var(--font-script);font-weight:600;font-size:16.5px;line-height:1.4}
+  .safety-summary{font-family:var(--font-script);font-size:14px;line-height:1.6;color:var(--ink-soft)}
+  .safety-tips-wrap{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+  .safety-tips-heading{font-family:var(--font-body);font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em}
+  .tip-row{display:flex;align-items:baseline;gap:8px;font-family:var(--font-script);font-size:14px;line-height:1.5}
+  .tip-num{flex:none;font-family:var(--font-mono);font-size:11px;color:var(--accent-deep);min-width:16px}
+  .banner.emergency{background:var(--danger-bg);color:var(--danger);border:1px solid color-mix(in srgb, var(--danger) 35%, transparent);border-radius:12px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start}
+  .banner.emergency svg{flex:none;width:22px;height:22px;margin-top:1px}
+  .emergency-title{font-family:var(--font-body);font-weight:700;font-size:14px;margin-bottom:4px}
+  .emergency-body{font-family:var(--font-script);font-size:14px;line-height:1.55}
+  .emergency-body a{color:var(--danger);text-decoration:underline}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <p class="tagline" id="tagline">Common banking scams in India, and how to protect yourself — explained in plain language.</p>
+  </header>
+
+  <div id="noLangBanner" class="banner error" hidden role="alert">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <span>No language has been chosen yet. Showing safety tips in English. Pick a language on the main Saralify page, then reopen this page and it will use that choice automatically.</span>
+  </div>
+
+  <div class="card lang-pill" id="langPill" hidden>
+    <span class="step-hint" id="readingInLabel">Showing tips in</span>
+    <span class="val" id="langDisplay"></span>
+  </div>
+
+  <div class="progress-row" id="progressRow" hidden>
+    <div class="progress-label"><span id="progressLabel">Translating the safety tips…</span><span></span></div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div id="translateErrorBanner" class="banner error" hidden role="alert">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <span id="translateErrorText"></span>
+  </div>
+
+  <div class="banner emergency" role="alert">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.9 2.6 17.5a2 2 0 0 0 1.75 3h15.3a2 2 0 0 0 1.75-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+    <div>
+      <div class="emergency-title" id="emergencyTitle">Already shared an OTP or sent money to a scammer?</div>
+      <div class="emergency-body" id="emergencyBody">Call 1930 right now — India's National Cyber Crime Helpline for financial fraud — or report online at cybercrime.gov.in. Acting fast gives your bank the best chance of stopping or reversing the transfer.</div>
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="step-head"><span class="step-title" id="tipsHeading">What to do</span></div>
+  </section>
+
+  <section id="safetyList" style="display:flex;flex-direction:column;gap:12px"></section>
+
+  <footer class="note">
+    <strong id="footerStrong">General safety habits, not a complete list.</strong>
+    <span id="footerRest">When in doubt about any call, message, or link claiming to be from your bank, contact your branch directly using the number on your card or passbook.</span>
+  </footer>
+</div>
+
+<script src="app.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var SAFETY_TIPS = Saralify.SAFETY_TIPS;
+  var WARNING_ICON = '<path d="M12 9v4M12 17h.01M10.3 3.9 2.6 17.5a2 2 0 0 0 1.75 3h15.3a2 2 0 0 0 1.75-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>';
+
+  var lang = Saralify.getStoredLang();
+  var cached = null;   // { titles, summaries, tips }
+  var uiCached = null;
+
+  function $(id){ return document.getElementById(id); }
+  function readCache(key){
+    try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch(e){ return null; }
+  }
+  function writeCache(key, val){
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){}
+  }
+
+  if (!lang) {
+    $('noLangBanner').hidden = false;
+  } else {
+    $('langPill').hidden = false;
+    $('langDisplay').textContent = lang.name;
+  }
+
+  function applyUI(t){
+    $('tagline').textContent = t.tagline;
+    $('readingInLabel').textContent = t.readingInLabel;
+    $('emergencyTitle').textContent = t.emergencyTitle;
+    $('emergencyBody').textContent = t.emergencyBody;
+    $('tipsHeading').textContent = t.tipsHeading;
+    $('footerStrong').textContent = t.footerStrong;
+    $('footerRest').textContent = t.footerRest;
+  }
+
+  function renderSafety(){
+    var list = $('safetyList');
+    list.innerHTML = '';
+    SAFETY_TIPS.forEach(function(s, i){
+      var title = cached ? cached.titles[i] : s.title;
+      var summary = cached ? cached.summaries[i] : s.summary;
+      var tips = cached ? cached.tips[i] : s.tips;
+
+      var card = document.createElement('div');
+      card.className = 'safety-card';
+
+      var top = document.createElement('div');
+      top.className = 'safety-top';
+
+      var icon = document.createElement('div');
+      icon.className = 'safety-icon';
+      var iconSvg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      iconSvg.setAttribute('viewBox','0 0 24 24');
+      iconSvg.setAttribute('fill','none');
+      iconSvg.setAttribute('stroke','currentColor');
+      iconSvg.setAttribute('stroke-width','1.8');
+      iconSvg.innerHTML = WARNING_ICON;
+      icon.appendChild(iconSvg);
+
+      var textWrap = document.createElement('div');
+      textWrap.style.flex = '1';
+      textWrap.style.minWidth = '0';
+      var nm = document.createElement('div');
+      nm.className = 'safety-title';
+      nm.textContent = title;
+      var ds = document.createElement('div');
+      ds.className = 'safety-summary';
+      ds.style.marginTop = '4px';
+      ds.textContent = summary;
+      textWrap.appendChild(nm);
+      textWrap.appendChild(ds);
+
+      top.appendChild(icon);
+      top.appendChild(textWrap);
+
+      var tipsWrap = document.createElement('div');
+      tipsWrap.className = 'safety-tips-wrap';
+      var th = document.createElement('div');
+      th.className = 'safety-tips-heading';
+      th.textContent = (uiCached && uiCached.tipsHeading) || Saralify.UI_SAFETY.tipsHeading;
+      tipsWrap.appendChild(th);
+      (tips || []).forEach(function(tip, ti){
+        var row = document.createElement('div');
+        row.className = 'tip-row';
+        var num = document.createElement('span');
+        num.className = 'tip-num';
+        num.textContent = (ti + 1) + '.';
+        var txt = document.createElement('span');
+        txt.textContent = tip;
+        row.appendChild(num); row.appendChild(txt);
+        tipsWrap.appendChild(row);
+      });
+
+      card.appendChild(top);
+      card.appendChild(tipsWrap);
+      list.appendChild(card);
+    });
+  }
+
+  function showProgress(on, pct){
+    $('progressRow').hidden = !on;
+    if (on) $('progressFill').style.width = Math.round((pct||0)*100) + '%';
+  }
+
+  async function loadTranslations(){
+    cached = readCache(Saralify.safetyCacheKey(lang.code));
+    uiCached = readCache(Saralify.uiSafetyCacheKey(lang.code));
+    if (uiCached) applyUI(uiCached);
+    if (cached) { renderSafety(); return; }
+
+    renderSafety();
+    showProgress(true, 0.05);
+
+    var uiJob = uiCached ? Promise.resolve() : Saralify.localizeStrings(Saralify.UI_SAFETY, lang.name, Saralify.uiSafetyCacheKey(lang.code))
+      .then(function(t){ uiCached = t; applyUI(t); })
+      .catch(function(){ /* keep English labels */ });
+
+    var safetyJob = Saralify.translateSafetyTips(lang.name, function(pct){ showProgress(true, pct); })
+      .then(function(data){
+        cached = data;
+        writeCache(Saralify.safetyCacheKey(lang.code), data);
+      });
+
+    try {
+      await Promise.all([uiJob, safetyJob]);
+    } catch(err){
+      $('translateErrorBanner').hidden = false;
+      $('translateErrorText').textContent = Saralify.sampleErrorMessage(err) + ' Showing what translated successfully; the rest is in English.';
+    } finally {
+      showProgress(false);
+      renderSafety();
+    }
+  }
+
+  renderSafety();
+  if (lang) loadTranslations();
+})();
+</script>
+</body>
+</html>
