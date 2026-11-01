@@ -13,7 +13,7 @@
   "use strict";
 
   var LANGUAGES = [
-    { name: "Plain English", code: "en", speech: "en-IN" },
+    { name: "English", code: "en", speech: "en-IN" },
     { name: "Hindi", code: "hi", speech: "hi-IN" },
     { name: "Bengali", code: "bn", speech: "bn-IN" },
     { name: "Marathi", code: "mr", speech: "mr-IN" },
@@ -102,7 +102,7 @@
   }
 
   async function translateText(text, languageName) {
-    if (languageName === "Plain English") return text;
+    if (languageName === "English") return text;
     var lang = findLanguage(languageName);
     var gcode = lang && GOOGLE_CODE[lang.code];
     if (!gcode) throw unsupportedError(languageName);
@@ -117,7 +117,7 @@
   // back to its original English text rather than failing the whole list.
   async function translateBatch(items, languageName) {
     if (!items.length) return [];
-    if (languageName === "Plain English") return items.slice();
+    if (languageName === "English") return items.slice();
     var lang = findLanguage(languageName);
     var gcode = lang && GOOGLE_CODE[lang.code];
     if (!gcode) throw unsupportedError(languageName);
