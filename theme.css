@@ -1,10 +1,10 @@
 /* Saralify shared theme: tokens + components used by every page. */
 :root {
-  --bg: #FFFFFF; --surface: #F1F7F3; --surface-2: #FFFFFF;
+  --bg: #104229; --surface: #F1F7F3; --surface-2: #FFFFFF;
   --ink: #122117; --ink-soft: #56695C; --line: #D7E3DA;
   --accent: #1F6B3F; --accent-deep: #164F2E; --accent2: #2E8F5C;
   --on-accent: #FFFFFF; --danger: #B3261E; --danger-bg: #FBEAE8;
-  --on-bg: #122117; --on-bg-soft: #56695C;
+  --on-bg: #FFFFFF; --on-bg-soft: #ECF6DE;
   --font-display: 'Fraunces', Georgia, serif;
   --font-body: 'Work Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
@@ -15,20 +15,20 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0D1712; --surface: #15221B; --surface-2: #1B2A21;
+    --bg: #104229; --surface: #15221B; --surface-2: #1B2A21;
     --ink: #EAF2EC; --ink-soft: #9AB1A1; --line: #2C4234;
     --accent: #3FA869; --accent-deep: #2C7D4E; --accent2: #57BD83;
     --on-accent: #08140D; --danger: #FF8A80; --danger-bg: #3A1F1C;
-    --on-bg: #EAF2EC; --on-bg-soft: #9AB1A1;
+    --on-bg: #FFFFFF; --on-bg-soft: #ECF6DE;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0D1712; --surface: #15221B; --surface-2: #1B2A21;
+  --bg: #104229; --surface: #15221B; --surface-2: #1B2A21;
   --ink: #EAF2EC; --ink-soft: #9AB1A1; --line: #2C4234;
   --accent: #3FA869; --accent-deep: #2C7D4E; --accent2: #57BD83;
   --on-accent: #08140D; --danger: #FF8A80; --danger-bg: #3A1F1C;
-  --on-bg: #EAF2EC; --on-bg-soft: #9AB1A1;
+  --on-bg: #FFFFFF; --on-bg-soft: #ECF6DE;
   color-scheme: dark;
 }
 
