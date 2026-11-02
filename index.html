@@ -22,6 +22,21 @@
   .vocab-card.open .vocab-chevron{transform:rotate(180deg)}
   .vocab-def{display:none;padding:0 14px 14px 14px;font-family:var(--font-script);font-size:14px;line-height:1.6;color:var(--ink-soft)}
   .vocab-card.open .vocab-def{display:block}
+  .collapsible-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:none;border:none;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+  .collapsible-chevron{flex:none;width:18px;height:18px;color:var(--ink-soft);transition:transform .15s}
+  .collapsible-head[aria-expanded="true"] .collapsible-chevron{transform:rotate(180deg)}
+  .bank-card{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .bank-top{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:none;border:none;padding:12px 14px;text-align:left;font:inherit;color:inherit;cursor:pointer}
+  .bank-name{font-family:var(--font-body);font-weight:700;font-size:14.5px}
+  .bank-chevron{flex:none;width:16px;height:16px;color:var(--ink-soft);transition:transform .15s}
+  .bank-card.open .bank-chevron{transform:rotate(180deg)}
+  .bank-body{display:none;flex-direction:column;gap:10px;padding:0 14px 14px 14px}
+  .bank-card.open .bank-body{display:flex}
+  .bank-group-heading{font-family:var(--font-body);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .bank-group-heading.pros{color:var(--accent-deep)}
+  .bank-group-heading.cons{color:var(--danger)}
+  .bank-list{margin:4px 0 0 0;padding:0 0 0 18px;font-family:var(--font-script);font-size:14px;line-height:1.6;color:var(--ink)}
+  .bank-list li{margin-bottom:2px}
 </style>
 </head>
 <body>
@@ -98,12 +113,26 @@
   </section>
 
   <section class="card">
-    <div class="step-head"><span class="step-title" id="vocabHeading">Banking vocabulary</span></div>
+    <button type="button" class="collapsible-head" id="banksToggle" aria-expanded="false">
+      <span class="step-title" id="banksHeading">Popular banks in India</span>
+      <svg class="collapsible-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <p class="step-hint" id="banksHint">A quick look at well-known Indian banks — strengths and trade-offs people commonly mention. General information only, not personal financial advice; compare current rates and services directly with each bank. Tap a bank to see details.</p>
+    <p class="step-hint" id="banksStatus" hidden><span class="spin"></span> Translating…</p>
+  </section>
+
+  <section id="banksList" hidden style="display:flex;flex-direction:column;gap:8px"></section>
+
+  <section class="card">
+    <button type="button" class="collapsible-head" id="vocabToggle" aria-expanded="false">
+      <span class="step-title" id="vocabHeading">Banking vocabulary</span>
+      <svg class="collapsible-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
     <p class="step-hint" id="vocabHint">Common words you'll see on Indian bank forms and in banking conversations, explained simply. Tap a word to see what it means.</p>
     <p class="step-hint" id="vocabStatus" hidden><span class="spin"></span> Translating…</p>
   </section>
 
-  <section id="vocabList" style="display:flex;flex-direction:column;gap:8px"></section>
+  <section id="vocabList" hidden style="display:flex;flex-direction:column;gap:8px"></section>
 
   <footer class="note">
     <span id="footerRest">Created by Paarth Gupta in 2026. PGCR Industries</span>
@@ -127,6 +156,7 @@
 
   var state = { lang:null, imageDataUrl:null, rawText:null };
   var uiCopyLabel = UI_STRINGS.copyLabel, uiCopiedLabel = UI_STRINGS.copiedLabel;
+  var uiProsLabel = UI_STRINGS.prosLabel, uiConsLabel = UI_STRINGS.consLabel;
 
   function $(id){ return document.getElementById(id); }
   function escapeHtml(s){ return Saralify.escapeHtml(s); }
@@ -150,7 +180,11 @@
     copyBtn.textContent = uiCopyLabel;
     $('vocabHeading').textContent = t.vocabHeading;
     $('vocabHint').textContent = t.vocabHint;
+    $('banksHeading').textContent = t.banksHeading;
+    $('banksHint').textContent = t.banksHint;
+    uiProsLabel = t.prosLabel; uiConsLabel = t.consLabel;
     $('footerRest').textContent = t.footerRest;
+    renderBanks();
   }
 
   // ---------- banking vocabulary ----------
@@ -224,6 +258,112 @@
 
   renderVocab();
 
+  // ---------- popular banks comparison ----------
+  var BANKS = Saralify.BANKS;
+  var banksCached = null; // { pros, cons }
+  var banksStatus = $('banksStatus');
+
+  function banksReadCache(key){
+    try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; } catch(e){ return null; }
+  }
+  function banksWriteCache(key, val){
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){}
+  }
+
+  function renderBanks(){
+    var list = $('banksList');
+    list.innerHTML = '';
+    BANKS.forEach(function(b, i){
+      var pros = banksCached ? banksCached.pros[i] : b.pros;
+      var cons = banksCached ? banksCached.cons[i] : b.cons;
+
+      var card = document.createElement('div');
+      card.className = 'bank-card';
+
+      var top = document.createElement('button');
+      top.type = 'button';
+      top.className = 'bank-top';
+
+      var nm = document.createElement('span');
+      nm.className = 'bank-name';
+      nm.textContent = b.name;
+
+      var chev = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      chev.setAttribute('class','bank-chevron');
+      chev.setAttribute('viewBox','0 0 24 24');
+      chev.setAttribute('fill','none');
+      chev.setAttribute('stroke','currentColor');
+      chev.setAttribute('stroke-width','2');
+      chev.innerHTML = '<path d="m6 9 6 6 6-6"/>';
+
+      top.appendChild(nm);
+      top.appendChild(chev);
+
+      var body = document.createElement('div');
+      body.className = 'bank-body';
+
+      var prosHead = document.createElement('div');
+      prosHead.className = 'bank-group-heading pros';
+      prosHead.textContent = uiProsLabel;
+      var prosList = document.createElement('ul');
+      prosList.className = 'bank-list';
+      (pros || []).forEach(function(p){
+        var li = document.createElement('li'); li.textContent = p; prosList.appendChild(li);
+      });
+
+      var consHead = document.createElement('div');
+      consHead.className = 'bank-group-heading cons';
+      consHead.textContent = uiConsLabel;
+      var consList = document.createElement('ul');
+      consList.className = 'bank-list';
+      (cons || []).forEach(function(c){
+        var li = document.createElement('li'); li.textContent = c; consList.appendChild(li);
+      });
+
+      body.appendChild(prosHead);
+      body.appendChild(prosList);
+      body.appendChild(consHead);
+      body.appendChild(consList);
+
+      top.addEventListener('click', function(){ card.classList.toggle('open'); });
+
+      card.appendChild(top);
+      card.appendChild(body);
+      list.appendChild(card);
+    });
+  }
+
+  async function loadBanks(lang){
+    banksCached = banksReadCache(Saralify.banksCacheKey(lang.code));
+    renderBanks();
+    if (banksCached) return;
+
+    banksStatus.hidden = false;
+    try {
+      var data = await Saralify.translateBanks(lang.name);
+      banksCached = data;
+      banksWriteCache(Saralify.banksCacheKey(lang.code), data);
+    } catch(e) { /* keep English points */ }
+    finally {
+      banksStatus.hidden = true;
+      renderBanks();
+    }
+  }
+
+  renderBanks();
+
+  // ---------- collapsible sections ----------
+  function wireCollapsible(toggleId, listId){
+    var btn = $(toggleId), list = $(listId);
+    btn.addEventListener('click', function(){
+      var open = btn.getAttribute('aria-expanded') !== 'true';
+      btn.setAttribute('aria-expanded', String(open));
+      list.hidden = !open;
+    });
+  }
+  wireCollapsible('banksToggle', 'banksList');
+  wireCollapsible('vocabToggle', 'vocabList');
+
   async function runSiteLocalization(lang){
     uiStatus.hidden = false;
     try {
@@ -254,6 +394,7 @@
       updateProcessBtn();
       runSiteLocalization(lang);
       loadVocab(lang);
+      loadBanks(lang);
     });
     langGrid.appendChild(btn);
   });

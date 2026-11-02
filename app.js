@@ -322,6 +322,10 @@
     copiedLabel:"Copied",
     vocabHeading:"Banking vocabulary",
     vocabHint:"Common words you'll see on Indian bank forms and in banking conversations, explained simply. Tap a word to see what it means.",
+    banksHeading:"Popular banks in India",
+    banksHint:"A quick look at well-known Indian banks — strengths and trade-offs people commonly mention. General information only, not personal financial advice; compare current rates and services directly with each bank. Tap a bank to see details.",
+    prosLabel:"Pros",
+    consLabel:"Cons",
     footerLead:"This is a working prototype.",
     footerRest:"This build runs fully in your browser: text recognition via Tesseract.js, translation via Google Translate's free public service. Quality is lower than a hosted-AI version, especially for messy photos or handwriting, and for the languages added to Google Translate more recently (Dogri, Konkani, Manipuri, Mizo, Sanskrit, Khasi). Voice playback depends on the voices installed on your device."
   };
@@ -540,6 +544,77 @@
     return { definitions: defsOut };
   }
 
+  // A short, general comparison of well-known Indian banks, shown on the
+  // main page. Points are the kind of thing commonly said about each bank
+  // (network size, digital banking quality, service reports) rather than
+  // individualized financial advice. Bank names stay in English; only the
+  // pros/cons text is translated.
+  var BANKS = [
+    { name: "State Bank of India (SBI)",
+      pros: ["Largest branch and ATM network in India, including rural and semi-urban areas", "Government-backed, widely seen as very safe", "Handles most government scheme accounts (pension, subsidy, Jan Dhan)"],
+      cons: ["Mobile and net banking apps are less polished than most private banks", "Branches can be crowded, with longer wait times"] },
+    { name: "HDFC Bank",
+      pros: ["Well-reviewed mobile and net banking app", "Generally fast loan processing", "Large ATM network in cities"],
+      cons: ["Fewer branches in remote or rural areas compared to public banks", "Some accounts require a higher minimum balance"] },
+    { name: "ICICI Bank",
+      pros: ["Strong digital banking experience with good UPI/app integration", "Wide range of products (loans, cards, insurance) in one place"],
+      cons: ["Minimum balance requirements can be high on some accounts", "Customer service response can vary by branch"] },
+    { name: "Axis Bank",
+      pros: ["Competitive interest rates on savings accounts and FDs at times", "Decent mobile banking app"],
+      cons: ["Smaller branch network than SBI or PNB in rural areas", "Customer service experience reported as inconsistent by some users"] },
+    { name: "Punjab National Bank (PNB)",
+      pros: ["Second-largest public sector bank, with a wide branch network including smaller towns", "Government-backed"],
+      cons: ["Digital banking experience lags behind private banks", "A past high-profile fraud case affected public trust for some customers"] },
+    { name: "Bank of Baroda",
+      pros: ["Large national and international presence, including NRI services", "Public-sector safety with competitive loan rates"],
+      cons: ["App and net banking interface considered less modern", "Service speed can vary a lot by branch"] },
+    { name: "Canara Bank",
+      pros: ["Long-established public bank with wide rural reach", "Good range of government scheme accounts"],
+      cons: ["Digital interface less modern than private banks", "Branch wait times can be long"] },
+    { name: "Kotak Mahindra Bank",
+      pros: ["Known for higher savings account interest rates on certain balance slabs", "Good digital and mobile banking"],
+      cons: ["Smaller physical branch network, mostly in cities", "Less convenient for rural customers"] },
+    { name: "IndusInd Bank",
+      pros: ["Good customer service reputation among private banks", "Decent range of savings and NRI products"],
+      cons: ["Limited branch presence outside major cities", "Higher minimum balance requirements on some accounts"] },
+    { name: "Union Bank of India",
+      pros: ["Large public-sector network after merging with Andhra Bank and Corporation Bank", "Good rural reach and government scheme accounts"],
+      cons: ["Digital banking experience still catching up to private banks", "Merger-related account and service transitions have caused some confusion"] },
+    { name: "IDFC FIRST Bank",
+      pros: ["Known for zero or low minimum balance savings accounts", "Relatively high savings interest rates and a modern app"],
+      cons: ["Newer bank with a smaller branch network", "Less brand recognition in rural areas"] },
+    { name: "Yes Bank",
+      pros: ["Competitive savings account interest rates", "Modern digital banking app"],
+      cons: ["Past financial troubles (2020 RBI-led reconstruction) made some customers cautious", "Smaller branch network than public-sector banks"] }
+  ];
+
+  function banksCacheKey(code) { return "saralify_banks_" + code; }
+
+  // Translates each bank's pros/cons lists in small groups (bank names stay
+  // in English). One failing group just leaves those banks' points in
+  // English rather than failing the whole comparison.
+  async function translateBanks(languageName, onProgress) {
+    var prosOut = BANKS.map(function (b) { return b.pros.slice(); });
+    var consOut = BANKS.map(function (b) { return b.cons.slice(); });
+    var groupSize = 2;
+    var groupCount = Math.ceil(BANKS.length / groupSize);
+    for (var start = 0, gi = 0; start < BANKS.length; start += groupSize, gi++) {
+      var group = BANKS.slice(start, start + groupSize);
+      var flat = [], spans = [];
+      group.forEach(function (b) { spans.push([flat.length, b.pros.length, b.cons.length]); flat = flat.concat(b.pros, b.cons); });
+      try {
+        var translatedFlat = await translateBatch(flat, languageName);
+        spans.forEach(function (span, si) {
+          var idx = start + si, offset = span[0], pLen = span[1], cLen = span[2];
+          prosOut[idx] = translatedFlat.slice(offset, offset + pLen);
+          consOut[idx] = translatedFlat.slice(offset + pLen, offset + pLen + cLen);
+        });
+      } catch (e) { /* this group's points stay in English */ }
+      if (onProgress) onProgress((gi + 1) / groupCount);
+    }
+    return { pros: prosOut, cons: consOut };
+  }
+
   async function preTranslateSite(lang) {
     var jobs = [
       (async function () {
@@ -599,6 +674,8 @@
     translateSafetyTips: translateSafetyTips,
     VOCAB_TERMS: VOCAB_TERMS,
     translateVocab: translateVocab,
+    BANKS: BANKS,
+    translateBanks: translateBanks,
     formsCacheKey: formsCacheKey,
     uiIndexCacheKey: uiIndexCacheKey,
     uiFormsCacheKey: uiFormsCacheKey,
@@ -606,6 +683,7 @@
     safetyCacheKey: safetyCacheKey,
     uiSafetyCacheKey: uiSafetyCacheKey,
     vocabCacheKey: vocabCacheKey,
+    banksCacheKey: banksCacheKey,
     preTranslateSite: preTranslateSite
   };
 })(window);
