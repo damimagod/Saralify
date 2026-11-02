@@ -45,8 +45,27 @@
   };
 
   var STORAGE_KEY = "saralify_lang";
+  var LANG_QUERY_PARAM = "lang";
 
+  // Opening a page in a fresh browser context (e.g. a Thunkable app's
+  // WebViewer "Open in browser" button launching the system browser) starts
+  // with empty localStorage, even if a language was already chosen inside
+  // the app. A "?lang=<code>" on the URL lets that choice carry across:
+  // this checks the URL first, falls back to localStorage, and - once
+  // found via the URL - also seeds localStorage so the rest of that
+  // browser session (navigating between pages) keeps remembering it.
   function getStoredLang() {
+    try {
+      var params = new URLSearchParams(global.location.search);
+      var code = params.get(LANG_QUERY_PARAM);
+      if (code) {
+        var fromUrl = null;
+        for (var i = 0; i < LANGUAGES.length; i++) {
+          if (LANGUAGES[i].code === code) { fromUrl = LANGUAGES[i]; break; }
+        }
+        if (fromUrl) { setStoredLang(fromUrl, { quiet: true }); return fromUrl; }
+      }
+    } catch (e) {}
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
@@ -55,8 +74,29 @@
       return null;
     } catch (e) { return null; }
   }
-  function setStoredLang(lang) {
+  // Besides localStorage, this also mirrors the choice onto the page's own
+  // URL (so a native app wrapper like Thunkable's WebViewer can read the
+  // current language straight off "WebViewer.URL" if it supports that) and,
+  // if the page is running inside a Thunkable WebViewer with its
+  // JavaScript Web Bridge extension loaded, pushes the code to the app
+  // directly - a more reliable channel than reading the URL back out,
+  // since that property doesn't update consistently in every Thunkable
+  // version. Both are no-ops outside of Thunkable. Pass {quiet:true} when
+  // restoring a value that already came from the URL, to avoid re-writing
+  // what's already there.
+  function setStoredLang(lang, opts) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(lang)); } catch (e) {}
+    if (opts && opts.quiet) return;
+    try {
+      var url = new URL(global.location.href);
+      url.searchParams.set(LANG_QUERY_PARAM, lang.code);
+      global.history.replaceState(null, "", url.toString());
+    } catch (e) {}
+    try {
+      if (global.ThunkableWebviewerExtension && typeof global.ThunkableWebviewerExtension.postMessage === "function") {
+        global.ThunkableWebviewerExtension.postMessage(lang.code);
+      }
+    } catch (e) {}
   }
   function escapeHtml(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
