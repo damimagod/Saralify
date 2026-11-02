@@ -44,8 +44,8 @@
   </section>
 
   <div class="card lang-pill" id="langPill" hidden>
-    <span class="step-hint" id="readingInLabel">Showing tips in</span>
-    <span class="val" id="langDisplay"></span>
+    <span><span class="step-hint" id="readingInLabel">Showing tips in</span> <span class="val" id="langDisplay"></span></span>
+    <button type="button" id="changeLangBtn" style="background:none;border:none;color:var(--accent-deep);text-decoration:underline;font:inherit;font-size:13px;cursor:pointer;padding:0">Change</button>
   </div>
 
   <div class="progress-row" id="progressRow" hidden>
@@ -106,7 +106,7 @@
       btn.type = 'button';
       btn.className = 'chip';
       btn.textContent = l.name;
-      btn.setAttribute('aria-pressed', 'false');
+      btn.setAttribute('aria-pressed', String(!!(lang && lang.code === l.code)));
       btn.addEventListener('click', function(){
         lang = l;
         Saralify.setStoredLang(l);
@@ -118,6 +118,12 @@
       grid.appendChild(btn);
     });
   }
+
+  $('changeLangBtn').addEventListener('click', function(){
+    $('langPill').hidden = true;
+    $('langPicker').hidden = false;
+    renderLangPicker();
+  });
 
   if (!lang) {
     $('langPicker').hidden = false;
