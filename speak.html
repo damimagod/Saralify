@@ -33,10 +33,11 @@
     <p class="tagline" id="tagline">Speak or type any text. Saralify translates it and reads it aloud.</p>
   </header>
 
-  <div id="noLangBanner" class="banner error" hidden role="alert">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
-    <span>No language has been chosen yet. Open the main Saralify page and pick a language there, then come back here. Dictating and reading the English text aloud still work without it.</span>
-  </div>
+  <section class="card" id="langPicker" hidden>
+    <div class="step-head"><span class="step-title">Choose your language</span></div>
+    <p class="step-hint">No language is remembered here yet. Pick one to translate into — dictating and reading the English text aloud still work without it.</p>
+    <div class="chip-grid" id="langPickerGrid" role="group" aria-label="Choose a language"></div>
+  </section>
 
   <div class="card lang-pill" id="langPill" hidden>
     <span class="step-hint" id="readingInLabel">Reading in</span>
@@ -145,8 +146,30 @@
     }
   })();
 
+  function renderLangPicker(){
+    var grid = $('langPickerGrid');
+    grid.innerHTML = '';
+    Saralify.LANGUAGES.forEach(function(l){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip';
+      btn.textContent = l.name;
+      btn.setAttribute('aria-pressed', 'false');
+      btn.addEventListener('click', function(){
+        lang = l;
+        Saralify.setStoredLang(l);
+        $('langPicker').hidden = true;
+        $('langPill').hidden = false;
+        $('langDisplay').textContent = l.name;
+        updateButtons();
+      });
+      grid.appendChild(btn);
+    });
+  }
+
   if (!lang) {
-    $('noLangBanner').hidden = false;
+    $('langPicker').hidden = false;
+    renderLangPicker();
   } else {
     $('langPill').hidden = false;
     $('langDisplay').textContent = lang.name;
